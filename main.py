@@ -1,5 +1,6 @@
 import pygame
 import sys
+import random
 
 pygame.init()
 screen_width = 800
@@ -39,6 +40,17 @@ for row in range(brick_rows):
         brick_row.append(brick_rect)
     bricks.append(brick_row)
 
+power_up_width = 20
+power_up_height = 20
+power_up_color = (0, 255, 0)
+power_up_speed = 5
+power_ups = []
+
+def create_power_up(x, y):
+    power_up_type = random.choice(["paddle_increase", "extra_ball"])
+    power_up_rect = pygame.Rect(x, y, power_up_width, power_up_height)
+    return {"rect": power_up_rect, "type": power_up_type}
+
 running = True
 while running:
     for event in pygame.event.get():
@@ -76,6 +88,19 @@ while running:
             if ball_rect.colliderect(brick):
                 ball_speed_y = -ball_speed_y
                 row.remove(brick)
+                if random.random() < 0.1:
+                    power_ups.append(create_power_up(brick.x, brick.y))
+
+    for power_up in power_ups[:]:
+        power_up["rect"].y += power_up_speed
+        if power_up["rect"].colliderect(paddle_rect):
+            if power_up["type"] == "paddle_increase":
+                paddle_width += 50
+            elif power_up["type"] == "extra_ball":
+                pass
+            power_ups.remove(power_up)
+        elif power_up["rect"].y > screen_height:
+            power_ups.remove(power_up)
 
     screen.fill((0, 0, 0))
 
@@ -85,6 +110,9 @@ while running:
     for row in bricks:
         for brick in row:
             pygame.draw.rect(screen, brick_color, brick)
+
+    for power_up in power_ups:
+        pygame.draw.rect(screen, power_up_color, power_up["rect"])
 
     pygame.display.flip()
     pygame.time.delay(30)
