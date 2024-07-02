@@ -74,62 +74,76 @@ def create_power_up(x, y):
 load_level(levels[current_level])
 power_ups = []
 
+game_state = "playing"  # possible states: "playing", "paused", "game_over"
+
 running = True
 while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_p:
+                if game_state == "playing":
+                    game_state = "paused"
+                elif game_state == "paused":
+                    game_state = "playing"
+            elif event.key == pygame.K_r and game_state == "game_over":
+                current_level = 0
+                load_level(levels[current_level])
+                ball_x = screen_width // 2
+                ball_y = screen_height // 2
+                ball_speed_x = 5
+                ball_speed_y = -5
+                paddle_width = 100
+                game_state = "playing"
 
-    keys = pygame.key.get_pressed()
+    if game_state == "playing":
+        keys = pygame.key.get_pressed()
+        if keys[pygame.K_LEFT] and paddle_x > 0:
+            paddle_x -= paddle_speed
+        if keys[pygame.K_RIGHT] and paddle_x < screen_width - paddle_width:
+            paddle_x += paddle_speed
 
-    if keys[pygame.K_LEFT] and paddle_x > 0:
-        paddle_x -= paddle_speed
-    if keys[pygame.K_RIGHT] and paddle_x < screen_width - paddle_width:
-        paddle_x += paddle_speed
+        ball_x += ball_speed_x
+        ball_y += ball_speed_y
 
-    ball_x += ball_speed_x
-    ball_y += ball_speed_y
+        if ball_x <= 0 or ball_x >= screen_width - ball_radius:
+            ball_speed_x = -ball_speed_x
+        if ball_y <= 0:
+            ball_speed_y = -ball_speed_y
+        if ball_y >= screen_height:
+            game_state = "game_over"
 
-    if ball_x <= 0 or ball_x >= screen_width - ball_radius:
-        ball_speed_x = -ball_speed_x
-    if ball_y <= 0:
-        ball_speed_y = -ball_speed_y
-    if ball_y >= screen_height:
-        ball_x = screen_width // 2
-        ball_y = screen_height // 2
-        ball_speed_x = 5
-        ball_speed_y = -5
+        paddle_rect = pygame.Rect(paddle_x, paddle_y, paddle_width, paddle_height)
+        ball_rect = pygame.Rect(ball_x - ball_radius, ball_y - ball_radius, ball_radius * 2, ball_radius * 2)
 
-    paddle_rect = pygame.Rect(paddle_x, paddle_y, paddle_width, paddle_height)
-    ball_rect = pygame.Rect(ball_x - ball_radius, ball_y - ball_radius, ball_radius * 2, ball_radius * 2)
+        if paddle_rect.colliderect(ball_rect):
+            ball_speed_y = -ball_speed_y
 
-    if paddle_rect.colliderect(ball_rect):
-        ball_speed_y = -ball_speed_y
+        for row in bricks:
+            for brick in row[:]:
+                if ball_rect.colliderect(brick):
+                    ball_speed_y = -ball_speed_y
+                    row.remove(brick)
+                    if random.random() < 0.1:
+                        power_ups.append(create_power_up(brick.x, brick.y))
 
-    for row in bricks:
-        for brick in row[:]:
-            if ball_rect.colliderect(brick):
-                ball_speed_y = -ball_speed_y
-                row.remove(brick)
-                if random.random() < 0.1:
-                    power_ups.append(create_power_up(brick.x, brick.y))
+        for power_up in power_ups[:]:
+            power_up["rect"].y += power_up_speed
+            if power_up["rect"].colliderect(paddle_rect):
+                if power_up["type"] == "paddle_increase":
+                    paddle_width += 50
+                elif power_up["type"] == "extra_ball":
+                    pass
+                power_ups.remove(power_up)
+            elif power_up["rect"].y > screen_height:
+                power_ups.remove(power_up)
 
-    for power_up in power_ups[:]:
-        power_up["rect"].y += power_up_speed
-        if power_up["rect"].colliderect(paddle_rect):
-            if power_up["type"] == "paddle_increase":
-                paddle_width += 50
-            elif power_up["type"] == "extra_ball":
-                pass
-            power_ups.remove(power_up)
-        elif power_up["rect"].y > screen_height:
-            power_ups.remove(power_up)
-
-    if all(len(row) == 0 for row in bricks):
-        current_level += 1
-        if current_level >= len(levels):
-            current_level = 0
-        load_level(levels[current_level])
+        if all(len(row) == 0 for row in bricks):
+            current_level += 1
+            if current_level >= len(levels):
+                current_level = 0
+            load_level(levels[current_level])
 
     screen.fill((0, 0, 0))
 
@@ -142,6 +156,16 @@ while running:
 
     for power_up in power_ups:
         pygame.draw.rect(screen, power_up_color, power_up["rect"])
+
+    if game_state == "paused":
+        font = pygame.font.SysFont(None, 55)
+        text = font.render("Paused", True, (255, 255, 255))
+        screen.blit(text, (screen_width // 2 - text.get_width() // 2, screen_height // 2 - text.get_height() // 2))
+
+    if game_state == "game_over":
+        font = pygame.font.SysFont(None, 55)
+        text = font.render("Game Over - Press R to Restart", True, (255, 255, 255))
+        screen.blit(text, (screen_width // 2 - text.get_width() // 2, screen_height // 2 - text.get_height() // 2))
 
     pygame.display.flip()
     pygame.time.delay(30)
